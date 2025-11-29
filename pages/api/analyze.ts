@@ -45,6 +45,127 @@ const groq = new Groq({
   apiKey: groqApiKey,
 })
 
+// Medical patterns for source matching
+const medicalPatterns = [
+  {
+    id: 'cardiac_chest_pain',
+    condition: 'Possible cardiac-related chest pain',
+    matchSymptoms: ['chest pain', 'shortness of breath'],
+    sources: [
+      { name: 'Mayo Clinic', url: 'https://www.mayoclinic.org/diseases-conditions/heart-attack' },
+      { name: 'American Heart Association', url: 'https://www.heart.org/' },
+    ],
+  },
+  {
+    id: 'resp_infection',
+    condition: 'Possible respiratory infection',
+    matchSymptoms: ['cough', 'fever', 'shortness of breath'],
+    sources: [
+      { name: 'CDC', url: 'https://www.cdc.gov/respiratory-viruses/' },
+      { name: 'Cleveland Clinic', url: 'https://my.clevelandclinic.org/health/diseases' },
+    ],
+  },
+  {
+    id: 'mild_uri',
+    condition: 'Likely mild upper respiratory infection',
+    matchSymptoms: ['sore throat', 'runny nose', 'fatigue'],
+    sources: [
+      { name: 'NHS', url: 'https://www.nhs.uk/conditions/common-cold/' },
+    ],
+  },
+]
+
+// Source matching function
+const matchSources = (structured: StructuredOutput): SourceMatch[] => {
+  const userSymptoms = (structured.symptoms || []).map((s: string) => s.toLowerCase())
+  const matches = medicalPatterns
+    .map((pattern) => {
+      const matched = pattern.matchSymptoms.filter((sym) =>
+        userSymptoms.some((us) => us.includes(sym))
+      )
+      const score = matched.length / pattern.matchSymptoms.length
+      return {
+        condition: pattern.condition,
+        matchedSymptoms: matched,
+        score,
+        sources: pattern.sources,
+      }
+    })
+    .filter((m) => m.score > 0) // only keep patterns with at least 1 overlap
+
+  return matches.sort((a, b) => b.score - a.score)
+}
+
+// Next steps generator function
+const generateNextSteps = (
+  structured: StructuredOutput,
+  urgency: 'low' | 'medium' | 'high'
+): NextSteps => {
+  const steps: NextSteps = {
+    immediate: [],
+    shortTerm: [],
+    seekCare: [],
+  }
+
+  // Immediate actions
+  if (urgency === 'high') {
+    steps.immediate.push(
+      'Avoid physical exertion immediately.',
+      'Sit or lie down and monitor symptoms every 15 minutes.',
+      'Have someone nearby in case symptoms escalate.'
+    )
+  } else if (urgency === 'medium') {
+    steps.immediate.push(
+      'Rest and reduce physical activity.',
+      'Drink plenty of fluids.',
+      'Take over-the-counter pain relievers if needed.'
+    )
+  } else {
+    steps.immediate.push(
+      'Maintain normal activity but avoid overexertion.',
+      'Track symptom frequency throughout the day.'
+    )
+  }
+
+  // Short-term monitoring
+  const symptomsLower = structured.symptoms.map((s) => s.toLowerCase())
+  const hasFever = symptomsLower.some((s) => s.includes('fever'))
+  const hasCough = symptomsLower.some((s) => s.includes('cough'))
+
+  if (hasFever) {
+    steps.shortTerm.push(
+      'Check temperature every 4–6 hours.',
+      'Watch for worsening fever or chills.'
+    )
+  }
+
+  if (hasCough) {
+    steps.shortTerm.push(
+      'Monitor cough intensity.',
+      'Watch for difficulty breathing or persistent chest tightness.'
+    )
+  }
+
+  steps.shortTerm.push(
+    'If symptoms do not improve within 48–72 hours, consider follow-up evaluation.'
+  )
+
+  // When to seek care
+  if (urgency === 'high') {
+    steps.seekCare.push(
+      'Seek urgent care or emergency attention immediately.',
+      'If chest pain worsens or shortness of breath increases, call emergency services.'
+    )
+  } else {
+    steps.seekCare.push(
+      'Seek medical care if symptoms escalate rapidly.',
+      'Seek care if new severe symptoms appear (difficulty breathing, confusion, persistent high fever).'
+    )
+  }
+
+  return steps
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AnalyzeResponse | { error: string }>
@@ -196,55 +317,6 @@ User's symptoms: ${symptoms}`
     // ============================================
     // SOURCE VALIDATION LAYER
     // ============================================
-    const medicalPatterns = [
-      {
-        id: 'cardiac_chest_pain',
-        condition: 'Possible cardiac-related chest pain',
-        matchSymptoms: ['chest pain', 'shortness of breath'],
-        sources: [
-          { name: 'Mayo Clinic', url: 'https://www.mayoclinic.org/diseases-conditions/heart-attack' },
-          { name: 'American Heart Association', url: 'https://www.heart.org/' },
-        ],
-      },
-      {
-        id: 'resp_infection',
-        condition: 'Possible respiratory infection',
-        matchSymptoms: ['cough', 'fever', 'shortness of breath'],
-        sources: [
-          { name: 'CDC', url: 'https://www.cdc.gov/respiratory-viruses/' },
-          { name: 'Cleveland Clinic', url: 'https://my.clevelandclinic.org/health/diseases' },
-        ],
-      },
-      {
-        id: 'mild_uri',
-        condition: 'Likely mild upper respiratory infection',
-        matchSymptoms: ['sore throat', 'runny nose', 'fatigue'],
-        sources: [
-          { name: 'NHS', url: 'https://www.nhs.uk/conditions/common-cold/' },
-        ],
-      },
-    ]
-
-    function matchSources(structured: StructuredOutput): SourceMatch[] {
-      const userSymptoms = (structured.symptoms || []).map((s: string) => s.toLowerCase())
-      const matches = medicalPatterns
-        .map((pattern) => {
-          const matched = pattern.matchSymptoms.filter((sym) =>
-            userSymptoms.some((us) => us.includes(sym))
-          )
-          const score = matched.length / pattern.matchSymptoms.length
-          return {
-            condition: pattern.condition,
-            matchedSymptoms: matched,
-            score,
-            sources: pattern.sources,
-          }
-        })
-        .filter((m) => m.score > 0) // only keep patterns with at least 1 overlap
-
-      return matches.sort((a, b) => b.score - a.score)
-    }
-
     const sourceMatches = matchSources(structuredOutput)
     if (sourceMatches.length > 0) {
       debugLogs.push(`Matched ${sourceMatches.length} clinical pattern(s) against curated sources.`)
@@ -253,72 +325,6 @@ User's symptoms: ${symptoms}`
     // ============================================
     // NEXT STEPS GENERATOR
     // ============================================
-    function generateNextSteps(structured: StructuredOutput, urgency: 'low' | 'medium' | 'high'): NextSteps {
-      const steps: NextSteps = {
-        immediate: [],
-        shortTerm: [],
-        seekCare: [],
-      }
-
-      // Immediate actions
-      if (urgency === 'high') {
-        steps.immediate.push(
-          'Avoid physical exertion immediately.',
-          'Sit or lie down and monitor symptoms every 15 minutes.',
-          'Have someone nearby in case symptoms escalate.'
-        )
-      } else if (urgency === 'medium') {
-        steps.immediate.push(
-          'Rest and reduce physical activity.',
-          'Drink plenty of fluids.',
-          'Take over-the-counter pain relievers if needed.'
-        )
-      } else {
-        steps.immediate.push(
-          'Maintain normal activity but avoid overexertion.',
-          'Track symptom frequency throughout the day.'
-        )
-      }
-
-      // Short-term monitoring
-      const symptomsLower = structured.symptoms.map((s) => s.toLowerCase())
-      const hasFever = symptomsLower.some((s) => s.includes('fever'))
-      const hasCough = symptomsLower.some((s) => s.includes('cough'))
-
-      if (hasFever) {
-        steps.shortTerm.push(
-          'Check temperature every 4–6 hours.',
-          'Watch for worsening fever or chills.'
-        )
-      }
-
-      if (hasCough) {
-        steps.shortTerm.push(
-          'Monitor cough intensity.',
-          'Watch for difficulty breathing or persistent chest tightness.'
-        )
-      }
-
-      steps.shortTerm.push(
-        'If symptoms do not improve within 48–72 hours, consider follow-up evaluation.'
-      )
-
-      // When to seek care
-      if (urgency === 'high') {
-        steps.seekCare.push(
-          'Seek urgent care or emergency attention immediately.',
-          'If chest pain worsens or shortness of breath increases, call emergency services.'
-        )
-      } else {
-        steps.seekCare.push(
-          'Seek medical care if symptoms escalate rapidly.',
-          'Seek care if new severe symptoms appear (difficulty breathing, confusion, persistent high fever).'
-        )
-      }
-
-      return steps
-    }
-
     const nextSteps = generateNextSteps(structuredOutput, urgency)
 
     // ============================================
