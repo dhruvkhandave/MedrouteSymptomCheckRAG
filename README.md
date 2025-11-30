@@ -1,6 +1,9 @@
 # MedRoute Demo
 
-A Next.js demo application that mimics Fleetline's architecture in a healthcare context. This app demonstrates a three-stage pipeline for analyzing medical symptoms:
+# Depolyed here: 
+https://symptom-check-groq-new.vercel.app/
+
+A Next.js demo application thats a symptom checker deployed on vercel This app demonstrates a three-stage pipeline for analyzing medical symptoms:
 
 1. **LLM Interpreter** - Extracts structured fields from natural language
 2. **Constraint Validator** - Applies validation rules and defaults
