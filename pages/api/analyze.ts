@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Groq from 'groq-sdk'
+import { retrieveRelevantSources, type RetrievedSource } from '@/lib/retrieval'
 
 // Types for structured output
 interface StructuredOutput {
@@ -29,6 +30,7 @@ interface AnalyzeResponse {
   recommended_action: string
   debug?: string[]
   sources?: SourceMatch[]
+  rag_sources?: RetrievedSource[]
   next_steps?: NextSteps
 }
 
@@ -328,6 +330,20 @@ User's symptoms: ${symptoms}`
     const nextSteps = generateNextSteps(structuredOutput, urgency)
 
     // ============================================
+    // RAG RETRIEVAL
+    // ============================================
+    let ragSources: RetrievedSource[] = []
+    try {
+      ragSources = await retrieveRelevantSources(symptoms, 3)
+      if (ragSources.length > 0) {
+        debugLogs.push(`Retrieved ${ragSources.length} relevant clinical pattern(s) via RAG.`)
+      }
+    } catch (ragError) {
+      console.warn('RAG retrieval failed (non-critical):', ragError)
+      // Continue without RAG sources - don't break the main flow
+    }
+
+    // ============================================
     // FINAL RESPONSE
     // ============================================
     return res.status(200).json({
@@ -337,6 +353,7 @@ User's symptoms: ${symptoms}`
       recommended_action: recommendedAction,
       debug: debugLogs,
       sources: sourceMatches,
+      rag_sources: ragSources,
       next_steps: nextSteps,
     })
   } catch (error) {

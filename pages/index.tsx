@@ -21,6 +21,14 @@ interface NextSteps {
   seekCare: string[]
 }
 
+interface RetrievedSource {
+  id: string
+  title: string
+  summary: string
+  guidance: string
+  similarity: number
+}
+
 interface AnalyzeResponse {
   structured_output: StructuredOutput
   final_score: number
@@ -28,6 +36,7 @@ interface AnalyzeResponse {
   recommended_action: string
   debug?: string[]
   sources?: SourceMatch[]
+  rag_sources?: RetrievedSource[]
   next_steps?: NextSteps
 }
 
@@ -187,6 +196,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">MedRoute</h1>
             <p className="text-gray-600">Healthcare symptom analysis with AI-powered triage</p>
+            <p className="text-xs text-gray-400 mt-3 font-light">by Dhruv Khandave</p>
           </div>
 
           {/* Step 1: Basic Info */}
@@ -461,6 +471,37 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       <div className="text-indigo-900">{result.recommended_action}</div>
                     </div>
                   </div>
+
+                  {/* Reference Patterns (RAG) */}
+                  {result.rag_sources && result.rag_sources.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h3 className="font-semibold text-sm text-gray-700 mb-3 uppercase tracking-wide">
+                        Reference Patterns
+                      </h3>
+                      <p className="text-xs text-gray-500 mb-4 italic">
+                        These are generalized clinical patterns and not a diagnosis.
+                      </p>
+                      <div className="space-y-4">
+                        {result.rag_sources.map((rag: RetrievedSource) => (
+                          <div key={rag.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="font-semibold text-gray-900">{rag.title}</h4>
+                              {rag.similarity && (
+                                <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                                  {Math.round(rag.similarity * 100)}% match
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 mb-2">{rag.summary}</p>
+                            <div className="mt-3 pt-3 border-t border-purple-200">
+                              <p className="text-xs font-medium text-gray-600 mb-1">Guidance:</p>
+                              <p className="text-sm text-gray-800">{rag.guidance}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Clinical Patterns & Sources */}
                   {result.sources && result.sources.length > 0 && (
