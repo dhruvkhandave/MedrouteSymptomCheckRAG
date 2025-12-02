@@ -10,6 +10,7 @@ interface StructuredOutput {
   severity: 'mild' | 'moderate' | 'severe'
   duration: string
   risk_factors: string[]
+  recommended_specialist?: string
   medical_history?: string[]
   lifestyle?: string[]
   symptom_onset?: string
@@ -648,6 +649,7 @@ Symptoms:
   "severity": "mild" | "moderate" | "severe",
   "duration": string,
   "risk_factors": string[],
+  "recommended_specialist": string, // always include; choose the most relevant specialist (e.g., cardiology, neurology, pulmonology, GI, psychiatry, dermatology, family medicine)
   "medical_history": string[],
   "lifestyle": string[],
   "symptom_onset": string,
@@ -670,6 +672,7 @@ Symptoms:
 
 Rules:
 - Factor lifestyle/info into severity/urgency: smoking/drug use + cardiac symptoms -> higher urgency; dehydration + vomiting -> higher severity; recent travel -> higher infection risk; chronic conditions/medications should influence recommendations.
+- ALWAYS pick a recommended_specialist based on the presentation. If uncertain, default to "family medicine".
 - Only return valid JSON. No extra text.
 
 User report:
@@ -739,6 +742,13 @@ Follow-up answers: ${JSON.stringify(followUpAnswers)}
 
     if (!structuredOutput.risk_factors) {
       structuredOutput.risk_factors = []
+    }
+
+    if (!structuredOutput.recommended_specialist || typeof structuredOutput.recommended_specialist !== 'string') {
+      structuredOutput.recommended_specialist = 'family medicine'
+      debugLogs.push("recommended_specialist missing; applied default = 'family medicine'.")
+    } else {
+      structuredOutput.recommended_specialist = structuredOutput.recommended_specialist.trim() || 'family medicine'
     }
 
     // Merge provided patient context to ensure availability

@@ -37,6 +37,12 @@ export default function AnalyzePage() {
   const [acknowledged, setAcknowledged] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [localStep, setLocalStep] = useState(1)
+  const [providerZip, setProviderZip] = useState('')
+  const [providers, setProviders] = useState<
+    Array<{ name: string; practiceName?: string | null; address: string; phone?: string }>
+  >([])
+  const [providersLoading, setProvidersLoading] = useState(false)
+  const [providersError, setProvidersError] = useState<string | null>(null)
 
   const handleGenerateFollowUps = () => {
     if (!symptoms.trim()) {
@@ -252,7 +258,6 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
   {
     match: ['fever', 'chills', 'fatigue'].some((t) => lower.includes(t)),
     questions: [
-      'Have you checked your temperature?',
       'Have symptoms worsened over the last 24 hours?',
       'Any recent travel or exposure to sick contacts?'
     ],
@@ -642,6 +647,10 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     setSymptoms('')
                     setFollowUps([])
                     setFollowUpAnswers({})
+                    setProviderZip('')
+                    setProviders([])
+                    setProvidersError(null)
+                    setProvidersLoading(false)
                   }}
                   className="text-sm text-indigo-700 hover:text-indigo-900 border border-indigo-200 bg-indigo-50 px-3 py-2 rounded-lg font-medium transition-colors"
                 >
@@ -732,6 +741,108 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Recommended Action</div>
                     <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded">
                       <div className="text-indigo-900">{result.recommended_action}</div>
+                    </div>
+                  </div>
+
+                  {/* Recommended Providers Nearby */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                          Recommended Providers Nearby
+                        </div>
+                        <div className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 mt-1">
+                          <span className="font-semibold">AI recommendation:</span>
+                          <span>
+                            {result.structured_output.recommended_specialist || 'family medicine'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Enter a ZIP code to find{' '}
+                          {result.structured_output.recommended_specialist
+                            ? `${result.structured_output.recommended_specialist} providers`
+                            : 'family medicine providers'} near you.
+                        </p>
+                        {!result.structured_output.recommended_specialist && (
+                          <p className="text-xs text-amber-600 mt-1">
+                            Specialist type not provided; defaulting to family medicine.
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={providerZip}
+                          onChange={(e) => setProviderZip(e.target.value)}
+                          placeholder="ZIP code"
+                          className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!providerZip.trim()) {
+                              setProvidersError('Please enter a ZIP code')
+                              return
+                            }
+                            const providerType =
+                              result.structured_output.recommended_specialist || 'family medicine'
+                            setProvidersError(null)
+                            setProviders([])
+                            setProvidersLoading(true)
+                            try {
+                              const response = await fetch('/api/providers', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  providerType,
+                                  zip: providerZip.trim(),
+                                }),
+                              })
+                              if (!response.ok) {
+                                const data = await response.json().catch(() => ({}))
+                                throw new Error(data.error || 'Unable to fetch providers')
+                              }
+                              const data = await response.json()
+                              setProviders(data)
+                            } catch (err) {
+                              setProvidersError(err instanceof Error ? err.message : 'Unable to fetch providers')
+                            } finally {
+                              setProvidersLoading(false)
+                            }
+                          }}
+                          disabled={providersLoading}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {providersLoading
+                            ? 'Searching...'
+                            : `Find nearby ${
+                                result.structured_output.recommended_specialist
+                                  ? `${result.structured_output.recommended_specialist} providers`
+                                  : 'family medicine providers'
+                              }`}
+                        </button>
+                      </div>
+                    </div>
+                    {providersError && (
+                      <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">
+                        {providersError}
+                      </div>
+                    )}
+                    <div className="mt-4 space-y-3">
+                      {providersLoading && <div className="text-sm text-gray-600">Searching providers...</div>}
+                      {!providersLoading && providers.length === 0 && !providersError && (
+                        <div className="text-sm text-gray-600">No providers found near this ZIP code.</div>
+                      )}
+                      {providers.map((p, idx) => (
+                        <div
+                          key={`${p.name}-${idx}`}
+                          className="border border-gray-200 rounded-lg p-4 flex flex-col gap-1"
+                        >
+                          <div className="font-semibold text-gray-900">{p.name}</div>
+                          {p.practiceName && <div className="text-sm text-gray-700">{p.practiceName}</div>}
+                          <div className="text-sm text-gray-700">{p.address}</div>
+                          {p.phone && <div className="text-xs text-gray-600">Phone: {p.phone}</div>}
+                        </div>
+                      ))}
                     </div>
                   </div>
 

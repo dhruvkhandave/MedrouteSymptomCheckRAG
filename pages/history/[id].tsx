@@ -40,7 +40,6 @@ export default function HistoryDetailPage() {
   const [query, setQuery] = useState<HistoryRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showDebug, setShowDebug] = useState(false)
 
   const result = useMemo<AnalyzeResponse | null>(() => query?.structured_output || null, [query])
 
@@ -383,25 +382,6 @@ export default function HistoryDetailPage() {
                   </div>
                 )}
 
-                {/* Constraint Debugger */}
-                {result.debug && result.debug.length > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <button
-                      onClick={() => setShowDebug(!showDebug)}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold mb-2"
-                    >
-                      {showDebug ? 'Hide Constraint Debugger' : 'Show Constraint Debugger'}
-                    </button>
-
-                    {showDebug && (
-                      <div className="bg-gray-900 text-gray-200 p-4 rounded text-sm mt-2 whitespace-pre-line">
-                        {result.debug.map((line: string, i: number) => (
-                          <div key={i}>• {line}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           )}
