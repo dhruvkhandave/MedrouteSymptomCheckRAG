@@ -1,6 +1,8 @@
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Groq from 'groq-sdk'
 import { retrieveRelevantSources, type RetrievedSource } from '@/lib/retrieval'
+import type { Database } from '@/lib/types'
 
 // Types for structured output
 interface StructuredOutput {
@@ -8,6 +10,24 @@ interface StructuredOutput {
   severity: 'mild' | 'moderate' | 'severe'
   duration: string
   risk_factors: string[]
+  medical_history?: string[]
+  lifestyle?: string[]
+  symptom_onset?: string
+  followup_questions?: string[]
+  followup_answers?: Record<string, string>
+  sleep_hours?: string
+  hydration_level?: string
+  stress_level?: string
+  recent_travel?: string
+  exercise_level?: string
+  diet_changes?: string
+  recent_illness_exposure?: string
+  alcohol_use?: string
+  drug_use?: string
+  sexual_activity?: string
+  menstrual_cycle?: string
+  chronic_conditions?: string[]
+  current_medications?: string[]
 }
 
 interface SourceMatch {
@@ -52,30 +72,340 @@ const medicalPatterns = [
   {
     id: 'cardiac_chest_pain',
     condition: 'Possible cardiac-related chest pain',
-    matchSymptoms: ['chest pain', 'shortness of breath'],
+    matchSymptoms: [
+      'chest pain',
+      'chest pressure',
+      'pain in left arm',
+      'jaw pain',
+      'shortness of breath',
+      'tightness in chest'
+    ],
     sources: [
-      { name: 'Mayo Clinic', url: 'https://www.mayoclinic.org/diseases-conditions/heart-attack' },
+      { name: 'Mayo Clinic – Heart Attack', url: 'https://www.mayoclinic.org/diseases-conditions/heart-attack' },
       { name: 'American Heart Association', url: 'https://www.heart.org/' },
+      { name: 'Cleveland Clinic – Chest Pain', url: 'https://my.clevelandclinic.org/health/symptoms/17649-chest-pain' },
+      { name: 'Johns Hopkins Medicine – Chest Pain', url: 'https://www.hopkinsmedicine.org/health/conditions-and-diseases/chest-pain' },
+      { name: 'NIH – Cardiac Symptoms', url: 'https://www.nhlbi.nih.gov/' }
     ],
   },
   {
     id: 'resp_infection',
     condition: 'Possible respiratory infection',
-    matchSymptoms: ['cough', 'fever', 'shortness of breath'],
+    matchSymptoms: [
+      'cough',
+      'productive cough',
+      'fever',
+      'chills',
+      'shortness of breath',
+      'nasal congestion'
+    ],
     sources: [
-      { name: 'CDC', url: 'https://www.cdc.gov/respiratory-viruses/' },
-      { name: 'Cleveland Clinic', url: 'https://my.clevelandclinic.org/health/diseases' },
+      { name: 'CDC – Respiratory Viruses', url: 'https://www.cdc.gov/respiratory-viruses/' },
+      { name: 'WHO – Respiratory Illnesses', url: 'https://www.who.int/health-topics/respiratory-tract-diseases' },
+      { name: 'Cleveland Clinic – URI', url: 'https://my.clevelandclinic.org/health/diseases/17747-upper-respiratory-infection' },
+      { name: 'Mayo Clinic – Pneumonia', url: 'https://www.mayoclinic.org/diseases-conditions/pneumonia' },
+      { name: 'Johns Hopkins – Respiratory Infections', url: 'https://www.hopkinsmedicine.org/health/conditions-and-diseases/respiratory-infection' }
     ],
   },
   {
     id: 'mild_uri',
     condition: 'Likely mild upper respiratory infection',
-    matchSymptoms: ['sore throat', 'runny nose', 'fatigue'],
+    matchSymptoms: [
+      'sore throat',
+      'runny nose',
+      'sneezing',
+      'mild fatigue',
+      'nasal congestion'
+    ],
     sources: [
-      { name: 'NHS', url: 'https://www.nhs.uk/conditions/common-cold/' },
+      { name: 'NHS – Common Cold', url: 'https://www.nhs.uk/conditions/common-cold/' },
+      { name: 'CDC – Colds', url: 'https://www.cdc.gov/antibiotic-use/colds.html' },
+      { name: 'Cleveland Clinic – Common Cold', url: 'https://my.clevelandclinic.org/health/diseases/17607-common-cold' },
+      { name: 'Mayo Clinic – Cold', url: 'https://www.mayoclinic.org/diseases-conditions/common-cold' }
     ],
   },
+  {
+    id: 'depression_fatigue',
+    condition: 'Possible depression-related fatigue',
+    matchSymptoms: [
+      'persistent sadness',
+      'loss of interest',
+      'fatigue',
+      'sleep disturbance'
+    ],
+    sources: [
+      { name: 'NIMH – Depression', url: 'https://www.nimh.nih.gov/health/topics/depression' },
+      { name: 'Psychology Today – Depression Overview', url: 'https://www.psychologytoday.com/us/basics/depression' },
+      { name: 'Cleveland Clinic – Depression Symptoms', url: 'https://my.clevelandclinic.org/health/diseases/9290-depression' }
+    ]
+  },
+  {
+    id: 'gastro_issue',
+    condition: 'Possible gastrointestinal distress',
+    matchSymptoms: [
+      'abdominal pain',
+      'nausea',
+      'vomiting',
+      'diarrhea',
+      'cramping',
+      'bloating'
+    ],
+    sources: [
+      { name: 'Mayo Clinic – Stomach Pain', url: 'https://www.mayoclinic.org/symptoms/abdominal-pain' },
+      { name: 'Cleveland Clinic – Gastroenteritis', url: 'https://my.clevelandclinic.org/health/diseases/10360-gastroenteritis' },
+      { name: 'Johns Hopkins – Stomach Issues', url: 'https://www.hopkinsmedicine.org/health/conditions-and-diseases/stomach-pain' },
+      { name: 'NIH – Digestive Diseases', url: 'https://www.niddk.nih.gov/health-information/digestive-diseases' }
+    ],
+  },
+  {
+    id: 'anxiety_shortness_breath',
+    condition: 'Possible panic attack or anxiety response',
+    matchSymptoms: [
+      'racing heart',
+      'chest tightness',
+      'shortness of breath',
+      'lightheadedness',
+      'tingling'
+    ],
+    sources: [
+      { name: 'NIMH – Anxiety Disorders', url: 'https://www.nimh.nih.gov/health/topics/anxiety-disorders' },
+      { name: 'NHS – Panic Disorder', url: 'https://www.nhs.uk/mental-health/conditions/panic-disorder/' },
+      { name: 'Mayo Clinic – Panic Attacks', url: 'https://www.mayoclinic.org/diseases-conditions/panic-attacks' }
+    ]
+  },
+  {
+    id: 'allergic_reaction',
+    condition: 'Possible allergic reaction',
+    matchSymptoms: [
+      'hives',
+      'itching',
+      'skin redness',
+      'swelling',
+      'rash'
+    ],
+    sources: [
+      { name: 'AAAAI – Allergies', url: 'https://www.aaaai.org/conditions-treatments/allergies' },
+      { name: 'Mayo Clinic – Allergic Reactions', url: 'https://www.mayoclinic.org/diseases-conditions/allergic-reactions' },
+      { name: 'Cleveland Clinic – Hives', url: 'https://my.clevelandclinic.org/health/diseases/17707-hives' }
+    ]
+  },
+  {
+    id: 'fatigue_general',
+    condition: 'General fatigue – broad causes',
+    matchSymptoms: [
+      'fatigue',
+      'tiredness',
+      'low energy'
+    ],
+    sources: [
+      { name: 'CDC – Chronic Fatigue', url: 'https://www.cdc.gov/me-cfs/' },
+      { name: 'Mayo Clinic – Fatigue', url: 'https://www.mayoclinic.org/symptoms/fatigue' },
+      { name: 'Cleveland Clinic – Fatigue Causes', url: 'https://my.clevelandclinic.org/health/symptoms/21403-fatigue' }
+    ]
+  },
+    {
+    id: 'stroke_warning_signs',
+    condition: 'Possible stroke or neurological emergency',
+    matchSymptoms: [
+      'facial drooping',
+      'arm weakness',
+      'slurred speech',
+      'sudden numbness',
+      'sudden vision loss',
+      'sudden confusion'
+    ],
+    sources: [
+      { name: 'CDC – Stroke Signs', url: 'https://www.cdc.gov/stroke/signs_symptoms.htm' },
+      { name: 'American Stroke Association', url: 'https://www.stroke.org/en/about-stroke/stroke-symptoms' },
+      { name: 'Mayo Clinic – Stroke', url: 'https://www.mayoclinic.org/diseases-conditions/stroke' }
+    ]
+  },
+  {
+    id: 'asthma_exacerbation',
+    condition: 'Possible asthma flare-up',
+    matchSymptoms: [
+      'wheezing',
+      'shortness of breath',
+      'chest tightness',
+      'coughing at night',
+      'difficulty breathing after exercise'
+    ],
+    sources: [
+      { name: 'CDC – Asthma', url: 'https://www.cdc.gov/asthma/' },
+      { name: 'AAAAI – Asthma Attacks', url: 'https://www.aaaai.org/conditions-and-treatments/asthma' },
+      { name: 'Mayo Clinic – Asthma', url: 'https://www.mayoclinic.org/diseases-conditions/asthma' }
+    ]
+  },
+  {
+    id: 'flu_influenza',
+    condition: 'Possible influenza infection',
+    matchSymptoms: [
+      'fever',
+      'body aches',
+      'fatigue',
+      'headache',
+      'dry cough',
+      'chills'
+    ],
+    sources: [
+      { name: 'CDC – Influenza', url: 'https://www.cdc.gov/flu/' },
+      { name: 'WHO – Influenza', url: 'https://www.who.int/health-topics/influenza' },
+      { name: 'Mayo Clinic – Flu', url: 'https://www.mayoclinic.org/diseases-conditions/flu' }
+    ]
+  },
+  {
+    id: 'covid_infection',
+    condition: 'Possible COVID-19 infection',
+    matchSymptoms: [
+      'loss of taste',
+      'loss of smell',
+      'fever',
+      'cough',
+      'fatigue',
+      'shortness of breath'
+    ],
+    sources: [
+      { name: 'CDC – COVID-19', url: 'https://www.cdc.gov/coronavirus/2019-ncov/' },
+      { name: 'WHO – COVID-19', url: 'https://www.who.int/health-topics/coronavirus' }
+    ]
+  },
+  {
+    id: 'migraine_pattern',
+    condition: 'Possible migraine headache',
+    matchSymptoms: [
+      'throbbing headache',
+      'headache worse with light',
+      'nausea with headache',
+      'visual aura',
+      'one-sided headache'
+    ],
+    sources: [
+      { name: 'American Migraine Foundation', url: 'https://americanmigrainefoundation.org/' },
+      { name: 'Mayo Clinic – Migraine', url: 'https://www.mayoclinic.org/diseases-conditions/migraine' }
+    ]
+  },
+  {
+    id: 'sinus_infection',
+    condition: 'Possible sinus infection (sinusitis)',
+    matchSymptoms: [
+      'sinus pressure',
+      'facial pain',
+      'thick nasal mucus',
+      'congested nose',
+      'headache around eyes'
+    ],
+    sources: [
+      { name: 'Mayo Clinic – Sinusitis', url: 'https://www.mayoclinic.org/diseases-conditions/sinusitis' },
+      { name: 'Cleveland Clinic – Sinus Infection', url: 'https://my.clevelandclinic.org/health/diseases/17714-sinusitis' }
+    ]
+  },
+  {
+    id: 'uti_pattern',
+    condition: 'Possible urinary tract infection (UTI)',
+    matchSymptoms: [
+      'burning urination',
+      'frequent urination',
+      'urgency to urinate',
+      'lower abdominal pain',
+      'cloudy urine'
+    ],
+    sources: [
+      { name: 'Mayo Clinic – UTI', url: 'https://www.mayoclinic.org/diseases-conditions/urinary-tract-infection' },
+      { name: 'Cleveland Clinic – UTI', url: 'https://my.clevelandclinic.org/health/diseases/5023-urinary-tract-infection' }
+    ]
+  },
+  {
+    id: 'kidney_stones',
+    condition: 'Possible kidney stones',
+    matchSymptoms: [
+      'back pain',
+      'flank pain',
+      'pain radiating to groin',
+      'blood in urine',
+      'nausea with pain'
+    ],
+    sources: [
+      { name: 'Mayo Clinic – Kidney Stones', url: 'https://www.mayoclinic.org/diseases-conditions/kidney-stones' },
+      { name: 'Cleveland Clinic – Kidney Stones', url: 'https://my.clevelandclinic.org/health/diseases/15604-kidney-stones' }
+    ]
+  },
+  {
+    id: 'appendicitis_pattern',
+    condition: 'Possible appendicitis',
+    matchSymptoms: [
+      'right lower abdominal pain',
+      'pain worse with movement',
+      'loss of appetite',
+      'fever',
+      'nausea'
+    ],
+    sources: [
+      { name: 'Mayo Clinic – Appendicitis', url: 'https://www.mayoclinic.org/diseases-conditions/appendicitis' },
+      { name: 'Cleveland Clinic – Appendicitis', url: 'https://my.clevelandclinic.org/health/diseases/10248-appendicitis' }
+    ]
+  },
+  {
+    id: 'gallbladder_attack',
+    condition: 'Possible gallbladder attack (biliary colic)',
+    matchSymptoms: [
+      'right upper abdominal pain',
+      'pain after fatty meals',
+      'nausea after eating',
+      'shoulder blade pain'
+    ],
+    sources: [
+      { name: 'Johns Hopkins – Gallbladder Disease', url: 'https://www.hopkinsmedicine.org/health/conditions-and-diseases/gallstones' },
+      { name: 'Mayo Clinic – Gallstones', url: 'https://www.mayoclinic.org/diseases-conditions/gallstones' }
+    ]
+  },
+  {
+    id: 'mono_infection',
+    condition: 'Possible mononucleosis (mono)',
+    matchSymptoms: [
+      'extreme fatigue',
+      'sore throat',
+      'swollen lymph nodes',
+      'fever'
+    ],
+    sources: [
+      { name: 'CDC – Epstein Barr (Mono)', url: 'https://www.cdc.gov/epstein-barr/' },
+      { name: 'Cleveland Clinic – Mono', url: 'https://my.clevelandclinic.org/health/diseases/8260-mononucleosis' }
+    ]
+  },
+  {
+    id: 'diabetes_high_blood_sugar',
+    condition: 'Possible high blood sugar (hyperglycemia)',
+    matchSymptoms: [
+      'frequent urination',
+      'excessive thirst',
+      'unexplained weight loss',
+      'blurry vision',
+      'fatigue'
+    ],
+    sources: [
+      { name: 'CDC – Diabetes', url: 'https://www.cdc.gov/diabetes/' },
+      { name: 'Mayo Clinic – Hyperglycemia', url: 'https://www.mayoclinic.org/diseases-conditions/hyperglycemia' }
+    ]
+  },
+  {
+    id: 'thyroid_imbalance',
+    condition: 'Possible thyroid imbalance',
+    matchSymptoms: [
+      'hair loss',
+      'cold intolerance',
+      'heat intolerance',
+      'fatigue',
+      'weight gain',
+      'weight loss'
+    ],
+    sources: [
+      { name: 'American Thyroid Association', url: 'https://www.thyroid.org/' },
+      { name: 'Mayo Clinic – Hypothyroidism', url: 'https://www.mayoclinic.org/diseases-conditions/hypothyroidism' },
+      { name: 'Mayo Clinic – Hyperthyroidism', url: 'https://www.mayoclinic.org/diseases-conditions/hyperthyroidism' }
+    ]
+  }
 ]
+
 
 // Source matching function
 const matchSources = (structured: StructuredOutput): SourceMatch[] => {
@@ -168,10 +498,135 @@ const generateNextSteps = (
   return steps
 }
 
+const buildFollowupQuestions = (text: string): string[] => {
+  const lower = text.toLowerCase()
+  const categories: Array<{ match: boolean; questions: string[] }> = [
+    {
+      match: ['chest pain', 'pressure', 'jaw pain', 'arm pain', 'shortness of breath'].some((t) =>
+        lower.includes(t)
+      ),
+      questions: [
+        'Does the pain radiate to your arm, neck, or jaw?',
+        'Did symptoms begin suddenly or gradually?',
+        'Are symptoms worse with activity?',
+      ],
+    },
+    {
+      match: ['cough', 'fever', 'congestion', 'wheezing'].some((t) => lower.includes(t)),
+      questions: [
+        'Are you experiencing difficulty breathing?',
+        'Is the cough productive (mucus)?',
+        'Have you had recent exposure to someone sick?',
+      ],
+    },
+    {
+      match: ['abdominal pain', 'nausea', 'vomiting', 'diarrhea'].some((t) => lower.includes(t)),
+      questions: [
+        'Does eating make symptoms better or worse?',
+        'Have you had any recent meals that seemed unusual or spoiled?',
+        'Are you able to keep fluids down?',
+      ],
+    },
+    {
+      match: ['fever', 'chills', 'fatigue'].some((t) => lower.includes(t)),
+      questions: [
+        'Have you checked your temperature?',
+        'Have symptoms worsened over the last 24 hours?',
+        'Any recent travel or exposure to sick contacts?',
+      ],
+    },
+    {
+      match: ['hives', 'swelling', 'rash'].some((t) => lower.includes(t)),
+      questions: [
+        'Did you recently eat or take anything new?',
+        'Are symptoms getting worse quickly?',
+        'Any swelling of lips, face, or throat?',
+      ],
+    },
+  ]
+
+  const collected: string[] = []
+  categories.forEach((cat) => {
+    if (cat.match && collected.length < 3) {
+      collected.push(...cat.questions)
+    }
+  })
+
+  return collected.slice(0, 9)
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AnalyzeResponse | { error: string }>
 ) {
+  const body = req.body || {}
+  const payload = body.basic && body.symptoms ? body : null
+  const symptomsFromPayload =
+    payload &&
+    `
+Basic Info:
+- Age: ${payload.basic?.age || 'Not provided'}
+- Gender: ${payload.basic?.gender || 'Not provided'}
+- Duration: ${payload.basic?.duration || 'Not provided'}
+
+Lifestyle:
+- Sleep: ${payload.lifestyle?.sleep ?? 'Not provided'}
+- Hydration: ${payload.lifestyle?.hydration ?? 'Not provided'}
+- Stress: ${payload.lifestyle?.stress ?? 'Not provided'}
+- Exercise: ${payload.lifestyle?.exercise ?? 'Not provided'}
+- Chronic conditions: ${payload.lifestyle?.chronic_conditions || 'Not provided'}
+- Medications: ${payload.lifestyle?.medications || 'Not provided'}
+
+Symptoms:
+- Description: ${payload.symptoms?.description || 'Not provided'}
+- Severity (1-10): ${payload.symptoms?.severity ?? 'Not provided'}
+- Progression: ${payload.symptoms?.progression || 'Not provided'}
+- Follow-ups: ${JSON.stringify(payload.symptoms?.followups || [])}
+`.trim()
+
+  const {
+    symptoms = symptomsFromPayload,
+    medicalHistory = [],
+    lifestyle = [],
+    onset = payload?.basic?.duration || '',
+    followUpQuestions = payload?.symptoms?.followups?.map((f: any) => f.question) || [],
+    followUpAnswers =
+      payload?.symptoms?.followups?.reduce(
+        (acc: Record<string, string>, f: any) => ({ ...acc, [f.question]: f.answer }),
+        {}
+      ) || {},
+    sleepHours = payload?.lifestyle?.sleep?.toString?.() || '',
+    hydration = payload?.lifestyle?.hydration?.toString?.() || '',
+    stressLevel = payload?.lifestyle?.stress?.toString?.() || '',
+    travel = '',
+    exerciseLevel = payload?.lifestyle?.exercise || '',
+    dietChanges = '',
+    illnessExposure = payload?.lifestyle?.recent_illness_exposure || '',
+    alcoholUse = '',
+    drugUse = '',
+    sexualActivity = '',
+    menstrualCycle = '',
+    chronicConditions = Array.isArray(payload?.lifestyle?.chronic_conditions)
+      ? payload?.lifestyle?.chronic_conditions
+      : payload?.lifestyle?.chronic_conditions
+      ? String(payload.lifestyle.chronic_conditions).split(',').map((v: string) => v.trim()).filter(Boolean)
+      : [],
+    medications = Array.isArray(payload?.lifestyle?.medications)
+      ? payload?.lifestyle?.medications
+      : payload?.lifestyle?.medications
+      ? String(payload.lifestyle.medications).split(',').map((v: string) => v.trim()).filter(Boolean)
+      : [],
+  } = body || {}
+
+  if (!symptoms || typeof symptoms !== 'string') {
+    return res.status(400).json({ error: 'Symptoms description is required' })
+  }
+
+  const supabase = createPagesServerClient<Database>({ req, res })
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   // Runtime validation: ensure API key is still available
   if (!process.env.GROQ_API_KEY) {
     console.error('ERROR: GROQ_API_KEY is missing at runtime!')
@@ -182,28 +637,52 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { symptoms } = req.body
-
-  if (!symptoms || typeof symptoms !== 'string') {
-    return res.status(400).json({ error: 'Symptoms description is required' })
-  }
-
   try {
     // ============================================
     // STEP 1: LLM INTERPRETER
     // ============================================
-    const prompt = `Convert the user's symptoms into this exact JSON format:
+    const prompt = `Convert the user's report and provided context into this exact JSON format:
 
 {
   "symptoms": string[],
   "severity": "mild" | "moderate" | "severe",
   "duration": string,
-  "risk_factors": string[]
+  "risk_factors": string[],
+  "medical_history": string[],
+  "lifestyle": string[],
+  "symptom_onset": string,
+  "followup_questions": string[],
+  "followup_answers": object,
+  "sleep_hours": string,
+  "hydration_level": string,
+  "stress_level": string,
+  "recent_travel": string,
+  "exercise_level": string,
+  "diet_changes": string,
+  "recent_illness_exposure": string,
+  "alcohol_use": string,
+  "drug_use": string,
+  "sexual_activity": string,
+  "menstrual_cycle": string,
+  "chronic_conditions": string[],
+  "current_medications": string[]
 }
 
-Only return valid JSON. No extra text.
+Rules:
+- Factor lifestyle/info into severity/urgency: smoking/drug use + cardiac symptoms -> higher urgency; dehydration + vomiting -> higher severity; recent travel -> higher infection risk; chronic conditions/medications should influence recommendations.
+- Only return valid JSON. No extra text.
 
-User's symptoms: ${symptoms}`
+User report:
+${symptoms}
+
+Provided patient context (use in severity/urgency and recommendations):
+Medical history: ${medicalHistory.join(', ') || 'None'}
+Lifestyle factors: ${lifestyle.join(', ') || 'None'}
+Symptom timeline: ${onset}
+Sleep: ${sleepHours}, Hydration: ${hydration}, Stress: ${stressLevel}, Travel: ${travel}, Exercise: ${exerciseLevel}, Diet changes: ${dietChanges}, Illness exposure: ${illnessExposure}
+Alcohol: ${alcoholUse}, Drugs: ${drugUse}, Sexual activity: ${sexualActivity}, Menstrual cycle: ${menstrualCycle}, Chronic conditions: ${chronicConditions.join(', ') || 'None'}, Medications: ${medications.join(', ') || 'None'}
+Follow-up answers: ${JSON.stringify(followUpAnswers)}
+`
 
     const completion = await groq.chat.completions.create({
       model: 'llama-3.1-8b-instant',
@@ -261,6 +740,42 @@ User's symptoms: ${symptoms}`
     if (!structuredOutput.risk_factors) {
       structuredOutput.risk_factors = []
     }
+
+    // Merge provided patient context to ensure availability
+    structuredOutput.medical_history = Array.isArray(medicalHistory)
+      ? medicalHistory
+      : structuredOutput.medical_history || []
+    structuredOutput.lifestyle = Array.isArray(lifestyle)
+      ? lifestyle
+      : structuredOutput.lifestyle || []
+    structuredOutput.symptom_onset =
+      typeof onset === 'string' && onset ? onset : structuredOutput.symptom_onset || ''
+    structuredOutput.followup_questions =
+      (Array.isArray(followUpQuestions) && followUpQuestions.length > 0
+        ? followUpQuestions
+        : structuredOutput.followup_questions) || []
+    structuredOutput.followup_answers =
+      (followUpAnswers && typeof followUpAnswers === 'object' && Object.keys(followUpAnswers).length > 0
+        ? followUpAnswers
+        : structuredOutput.followup_answers) || {}
+    structuredOutput.sleep_hours = structuredOutput.sleep_hours || (sleepHours as string)
+    structuredOutput.hydration_level = structuredOutput.hydration_level || (hydration as string)
+    structuredOutput.stress_level = structuredOutput.stress_level || (stressLevel as string)
+    structuredOutput.recent_travel = structuredOutput.recent_travel || (travel as string)
+    structuredOutput.exercise_level = structuredOutput.exercise_level || (exerciseLevel as string)
+    structuredOutput.diet_changes = structuredOutput.diet_changes || (dietChanges as string)
+    structuredOutput.recent_illness_exposure =
+      structuredOutput.recent_illness_exposure || (illnessExposure as string)
+    structuredOutput.alcohol_use = structuredOutput.alcohol_use || (alcoholUse as string)
+    structuredOutput.drug_use = structuredOutput.drug_use || (drugUse as string)
+    structuredOutput.sexual_activity = structuredOutput.sexual_activity || (sexualActivity as string)
+    structuredOutput.menstrual_cycle = structuredOutput.menstrual_cycle || (menstrualCycle as string)
+    structuredOutput.chronic_conditions =
+      structuredOutput.chronic_conditions ||
+      (Array.isArray(chronicConditions) ? chronicConditions : [])
+    structuredOutput.current_medications =
+      structuredOutput.current_medications ||
+      (Array.isArray(medications) ? medications : [])
 
     // Constraint rule: chest pain + shortness of breath → add "critical" to risk_factors
     const symptomsLower = structuredOutput.symptoms.map(s => s.toLowerCase())
@@ -329,12 +844,61 @@ User's symptoms: ${symptoms}`
     // ============================================
     const nextSteps = generateNextSteps(structuredOutput, urgency)
 
+    // FOLLOW-UP QUESTIONS/ANSWERS (derived + provided)
+    const derivedFollowups = buildFollowupQuestions(symptoms)
+    const combinedFollowups =
+      Array.isArray(followUpQuestions) && followUpQuestions.length > 0
+        ? followUpQuestions
+        : derivedFollowups
+
+    structuredOutput.medical_history = Array.isArray(medicalHistory) ? medicalHistory : []
+    structuredOutput.lifestyle = Array.isArray(lifestyle) ? lifestyle : []
+    structuredOutput.symptom_onset = typeof onset === 'string' ? onset : ''
+    structuredOutput.followup_questions = combinedFollowups
+    structuredOutput.followup_answers =
+      followUpAnswers && typeof followUpAnswers === 'object' ? followUpAnswers : {}
+    structuredOutput.sleep_hours = sleepHours
+    structuredOutput.hydration_level = hydration
+    structuredOutput.stress_level = stressLevel
+    structuredOutput.recent_travel = travel
+    structuredOutput.exercise_level = exerciseLevel
+    structuredOutput.diet_changes = dietChanges
+    structuredOutput.recent_illness_exposure = illnessExposure
+    structuredOutput.alcohol_use = alcoholUse
+    structuredOutput.drug_use = drugUse
+    structuredOutput.sexual_activity = sexualActivity
+    structuredOutput.menstrual_cycle = menstrualCycle
+    structuredOutput.chronic_conditions = Array.isArray(chronicConditions) ? chronicConditions : []
+    structuredOutput.current_medications = Array.isArray(medications) ? medications : []
+
     // ============================================
     // RAG RETRIEVAL
     // ============================================
     let ragSources: RetrievedSource[] = []
     try {
-      ragSources = await retrieveRelevantSources(symptoms, 3)
+      const ragContext = `
+${symptoms}
+Medical history: ${structuredOutput.medical_history?.join(', ') || 'None'}
+Lifestyle: ${structuredOutput.lifestyle?.join(', ') || 'None'}
+Symptom timeline: ${structuredOutput.symptom_onset || 'Not specified'}
+Sleep: ${structuredOutput.sleep_hours || 'Not specified'}
+Hydration: ${structuredOutput.hydration_level || 'Not specified'}
+Stress: ${structuredOutput.stress_level || 'Not specified'}
+Recent travel: ${structuredOutput.recent_travel || 'Not specified'}
+Exercise: ${structuredOutput.exercise_level || 'Not specified'}
+Diet changes: ${structuredOutput.diet_changes || 'Not specified'}
+Illness exposure: ${structuredOutput.recent_illness_exposure || 'Not specified'}
+Alcohol use: ${structuredOutput.alcohol_use || 'Not specified'}
+Drug use: ${structuredOutput.drug_use || 'Not specified'}
+Sexual activity: ${structuredOutput.sexual_activity || 'Not specified'}
+Menstrual cycle: ${structuredOutput.menstrual_cycle || 'Not specified'}
+Risk factors: ${structuredOutput.risk_factors.join(', ')}
+Severity: ${structuredOutput.severity}
+Urgency: ${urgency}
+Medications: ${structuredOutput.current_medications?.join(', ') || 'None'}
+Chronic conditions: ${structuredOutput.chronic_conditions?.join(', ') || 'None'}
+`
+      ragSources = await retrieveRelevantSources(ragContext, 2)
       if (ragSources.length > 0) {
         debugLogs.push(`Retrieved ${ragSources.length} relevant clinical pattern(s) via RAG.`)
       }
@@ -346,7 +910,7 @@ User's symptoms: ${symptoms}`
     // ============================================
     // FINAL RESPONSE
     // ============================================
-    return res.status(200).json({
+    const responsePayload: AnalyzeResponse = {
       structured_output: structuredOutput,
       final_score: finalScore,
       urgency,
@@ -355,10 +919,23 @@ User's symptoms: ${symptoms}`
       sources: sourceMatches,
       rag_sources: ragSources,
       next_steps: nextSteps,
-    })
+    }
+
+    if (user) {
+      try {
+        await supabase.from('health_queries').insert({
+          user_id: user.id,
+          input_text: symptoms,
+          structured_output: responsePayload,
+        })
+      } catch (insertError) {
+        console.error('Failed to save history entry:', insertError)
+      }
+    }
+
+    return res.status(200).json(responsePayload)
   } catch (error) {
     console.error('Error in analyze endpoint:', error)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
-

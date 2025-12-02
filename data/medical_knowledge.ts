@@ -111,6 +111,147 @@ export const MEDICAL_KNOWLEDGE: MedicalItem[] = [
     typical_symptoms: ['severe abdominal pain', 'nausea', 'vomiting', 'fever', 'tenderness'],
     red_flags: ['sudden severe pain', 'rigid abdomen', 'fever with severe pain', 'inability to keep fluids down'],
     guidance: 'Severe or sudden abdominal pain requires immediate medical evaluation. Do not eat or drink until evaluated. This may indicate conditions requiring urgent surgical evaluation.'
-  }
-]
+  },
+  {
+    id: 'hives_allergic_reaction',
+    title: 'Hives and Allergic Reaction Pattern',
+    summary: 'Hives can result from allergic reactions, infections, medications, or environmental triggers. Rapid onset with breathing issues can indicate a medical emergency.',
+    typical_symptoms: [
+      'raised itchy welts',
+      'red or skin-colored patches',
+      'swelling of lips or eyelids',
+      'itching',
+      'burning sensation',
+    ],
+    red_flags: [
+      'difficulty breathing',
+      'tightness in throat',
+      'swelling of tongue or face',
+      'dizziness or fainting',
+      'hives spreading rapidly',
+    ],
+    guidance:
+      'Most cases of hives resolve on their own or with antihistamines. Seek immediate medical care if hives occur with breathing difficulty, swelling of the throat or tongue, or signs of anaphylaxis.',
+  },
+  {
+  id: 'migraine_pattern',
+  title: 'Migraine Pattern',
+  summary: 'Throbbing unilateral headache with sensitivity to light and nausea.',
+  typical_symptoms: ['throbbing headache', 'light sensitivity', 'sound sensitivity', 'nausea', 'visual aura'],
+  red_flags: ['sudden “worst headache”', 'weakness on one side', 'confusion', 'fever with stiff neck'],
+  guidance: 'Rest in a dark room, hydrate, and consider migraine-specific medications if prescribed. Seek medical care if the headache is sudden, severe, or associated with neurological symptoms.'
+},
+{
+  id: 'sinus_infection_pattern',
+  title: 'Sinus Infection Pattern',
+  summary: 'Facial pressure with congestion and headache may suggest sinus inflammation.',
+  typical_symptoms: ['facial pressure', 'nasal congestion', 'headache', 'post-nasal drip', 'thick nasal mucus'],
+  red_flags: ['high fever', 'vision changes', 'severe headache', 'symptoms lasting more than 10 days'],
+  guidance: 'Use warm compresses, saline rinses, and hydration. Seek care if symptoms persist beyond 10 days or worsen suddenly.'
+},
+{
+  id: 'panic_attack_pattern',
+  title: 'Panic Attack Pattern',
+  summary: 'Sudden fear with chest tightness, racing heart, and shortness of breath.',
+  typical_symptoms: ['racing heart', 'chest tightness', 'shortness of breath', 'trembling', 'sense of impending doom'],
+  red_flags: ['chest pain lasting >10 minutes', 'fainting', 'confusion', 'severe shortness of breath'],
+  guidance: 'Slow breathing, grounding techniques, and reassurance may help. Seek emergency care if symptoms resemble cardiac issues or do not resolve.'
+},
+{
+  id: 'asthma_exacerbation',
+  title: 'Asthma Exacerbation Pattern',
+  summary: 'Wheezing and difficulty breathing due to airway inflammation.',
+  typical_symptoms: ['wheezing', 'shortness of breath', 'chest tightness', 'coughing', 'difficulty speaking'],
+  red_flags: ['inability to speak full sentences', 'blue lips', 'rapid worsening', 'no improvement after inhaler use'],
+  guidance: 'Use prescribed inhalers immediately. Seek emergency care if symptoms do not improve or worsen.'
+},
+{
+  id: 'cold_vs_flu_pattern',
+  title: 'Cold vs Flu Pattern',
+  summary: 'Helps differentiate mild cold symptoms from more severe flu presentations.',
+  typical_symptoms: ['fever', 'chills', 'cough', 'sore throat', 'fatigue'],
+  red_flags: ['shortness of breath', 'persistent high fever', 'chest pain', 'severe dehydration'],
+  guidance: 'Rest, hydrate, and use OTC symptom relief. Seek care for worsening breathing, persistent fever, or dehydration.'
+},
+{
+  id: 'food_poisoning_pattern',
+  title: 'Food Poisoning Pattern',
+  summary: 'Vomiting and diarrhea shortly after eating contaminated food.',
+  typical_symptoms: ['vomiting', 'diarrhea', 'abdominal cramps', 'nausea', 'fatigue'],
+  red_flags: ['bloody stool', 'vomiting for more than 24 hours', 'signs of dehydration', 'fever above 102°F'],
+  guidance: 'Hydrate with electrolyte fluids. Avoid solid foods initially. Seek care if dehydration or persistent symptoms occur.'
+},
+{
+  id: 'appendicitis_pattern',
+  title: 'Appendicitis Pattern',
+  summary: 'Pain starting near the navel and moving to the right lower abdomen.',
+  typical_symptoms: ['right lower abdominal pain', 'nausea', 'loss of appetite', 'fever', 'rebound tenderness'],
+  red_flags: ['severe pain', 'rigid abdomen', 'vomiting with fever', 'rapid worsening'],
+  guidance: 'Possible surgical emergency. Seek immediate care if symptoms suggest appendicitis.'
+},
+{
+  id: 'stroke_pattern',
+  title: 'Stroke Warning Pattern',
+  summary: 'Sudden neurological symptoms indicating possible stroke.',
+  typical_symptoms: ['weakness on one side', 'slurred speech', 'vision loss', 'confusion', 'sudden severe headache'],
+  red_flags: ['sudden neurological deficits', 'inability to speak', 'facial drooping', 'loss of coordination'],
+  guidance: 'Call emergency services immediately. Time-sensitive emergency requiring immediate evaluation.'
+},
+{
+  id: 'covid_like_pattern',
+  title: 'COVID-Like Symptom Pattern',
+  summary: 'Respiratory symptoms with fever and fatigue may resemble viral illness.',
+  typical_symptoms: ['fever', 'dry cough', 'fatigue', 'loss of smell', 'body aches'],
+  red_flags: ['severe difficulty breathing', 'persistent chest pain', 'new confusion', 'bluish lips'],
+  guidance: 'Test if possible. Isolate, hydrate, and monitor symptoms. Seek emergency care for trouble breathing or chest pain.'
+},
+{
+  id: 'ear_infection_pattern',
+  title: 'Ear Infection Pattern',
+  summary: 'Ear pain with decreased hearing and possible fever.',
+  typical_symptoms: ['ear pain', 'hearing loss', 'ear pressure', 'fever', 'drainage from ear'],
+  red_flags: ['severe pain', 'swelling behind ear', 'stiff neck', 'persistent fever'],
+  guidance: 'Analgesics and warm compresses can help. Seek medical evaluation for persistent pain or fever.'
+},
+{
+  id: 'skin_infection_pattern',
+  title: 'Skin Infection Pattern',
+  summary: 'Redness, warmth, and swelling of skin may indicate infection.',
+  typical_symptoms: ['redness', 'swelling', 'warmth', 'tenderness', 'pus or drainage'],
+  red_flags: ['rapidly spreading redness', 'fever', 'severe pain', 'black patches of skin'],
+  guidance: 'Keep clean and monitor for spreading. Seek care if redness expands or fever develops.'
+},
+{
+  id: 'concussion_pattern',
+  title: 'Concussion Pattern',
+  summary: 'Head trauma causing headache, confusion, or dizziness.',
+  typical_symptoms: ['headache', 'dizziness', 'confusion', 'nausea', 'sensitivity to light'],
+  red_flags: ['loss of consciousness', 'vomiting repeatedly', 'worsening headache', 'unequal pupils'],
+  guidance: 'Rest and avoid screens. Seek urgent care if severe symptoms or repeated vomiting occur.'
+},
+{
+  id: 'lower_back_pain',
+  title: 'Lower Back Pain Pattern',
+  summary: 'Mechanical back pain from lifting, strain, or posture.',
+  typical_symptoms: ['lower back pain', 'stiffness', 'limited movement', 'muscle spasms'],
+  red_flags: ['numbness in legs', 'loss of bladder control', 'severe weakness', 'pain after trauma'],
+  guidance: 'Rest, heat/ice, and gentle movement. Seek care if neurological symptoms appear.'
+},
+{
+  id: 'pregnancy_related_symptoms',
+  title: 'Pregnancy-Related Symptom Pattern',
+  summary: 'Nausea, fatigue, breast tenderness, or missed period may suggest early pregnancy.',
+  typical_symptoms: ['missed period', 'nausea', 'fatigue', 'breast tenderness', 'increased urination'],
+  red_flags: ['severe abdominal pain', 'heavy bleeding', 'dizziness', 'shoulder pain'],
+  guidance: 'Consider home testing. Seek immediate care for heavy bleeding or severe pain due to risk of ectopic pregnancy.'
+},
+{
+  id: 'depression_pattern',
+  title: 'Depression Symptom Pattern',
+  summary: 'Persistent low mood and loss of interest in activities.',
+  typical_symptoms: ['sadness', 'loss of interest', 'fatigue', 'sleep changes', 'poor concentration'],
+  red_flags: ['thoughts of self-harm', 'inability to function', 'severe withdrawal'],
+  guidance: 'Seek mental health evaluation. Supportive therapy and medical treatment may help. Seek urgent help for suicidal thoughts.'
+}
 
+]
