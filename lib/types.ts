@@ -3,6 +3,7 @@ export interface StructuredOutput {
   severity: 'mild' | 'moderate' | 'severe'
   duration: string
   risk_factors: string[]
+  recommended_specialist?: string
   medical_history?: string[]
   lifestyle?: string[]
   symptom_onset?: string
