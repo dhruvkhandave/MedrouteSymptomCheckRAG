@@ -1,0 +1,34 @@
+[
+  {
+    "id": "chest_pain_urgent",
+    "input_text": "Sharp chest pain radiating to the jaw and left arm with shortness of breath and sweating.",
+    "expected": {
+      "recommended_action": "Seek immediate emergency care.",
+      "recommended_specialist": "cardiology"
+    }
+  },
+  {
+    "id": "respiratory_infection",
+    "input_text": "Fever with persistent cough, congestion, and body aches for 3 days.",
+    "expected": {
+      "recommended_action": "Schedule a primary care evaluation within 24-48 hours.",
+      "recommended_specialist": "family medicine"
+    }
+  },
+  {
+    "id": "abdominal_pain_gi",
+    "input_text": "Severe abdominal pain with nausea and vomiting that started suddenly last night.",
+    "expected": {
+      "recommended_action": "Seek urgent evaluation today.",
+      "recommended_specialist": "gastroenterology"
+    }
+  },
+  {
+    "id": "migraine_like",
+    "input_text": "Throbbing unilateral headache with sensitivity to light and nausea; no neuro deficits.",
+    "expected": {
+      "recommended_action": "Outpatient evaluation and symptomatic management.",
+      "recommended_specialist": "neurology"
+    }
+  }
+]
