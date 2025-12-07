@@ -28,6 +28,21 @@ export default function Navbar() {
         {!isLoading && (
           session ? (
             <nav className="flex items-center gap-3 text-sm">
+              {session?.user?.email === 'dkdave12345678@gmail.com' ? (
+                <Link
+                  href="/admin/ai-manager"
+                  className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                >
+                  Admin AI Manager
+                </Link>
+              ) : (
+                <Link
+                  href="/ai-manager"
+                  className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                >
+                  AI Manager
+                </Link>
+              )}
               <button
                 onClick={() => {
                   if (router.pathname === '/analyze') {

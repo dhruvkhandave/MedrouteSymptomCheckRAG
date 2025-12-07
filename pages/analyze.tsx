@@ -201,6 +201,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
       case 'moderate':
         return 'text-yellow-600'
       case 'severe':
+      case 'extremely severe':
         return 'text-red-600'
       default:
         return 'text-gray-600'

@@ -1,6 +1,6 @@
 export interface StructuredOutput {
   symptoms: string[]
-  severity: 'mild' | 'moderate' | 'severe'
+  severity: 'mild' | 'moderate' | 'severe' | 'extremely severe'
   duration: string
   risk_factors: string[]
   recommended_specialist?: string
@@ -76,6 +76,55 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      global_ai_rules: {
+        Row: {
+          id: string
+          raw_text: Json | null
+          condition: Json | null
+          overrides: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          raw_text?: Json | null
+          condition?: Json | null
+          overrides?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          raw_text?: Json | null
+          condition?: Json | null
+          overrides?: Json | null
+          created_at?: string
+        }
+      }
+      ai_rules: {
+        Row: {
+          id: string
+          user_id: string
+          raw_text: string | null
+          condition: Json | null
+          overrides: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          raw_text?: string | null
+          condition?: Json | null
+          overrides?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          raw_text?: string | null
+          condition?: Json | null
+          overrides?: Json | null
+          created_at?: string
+        }
+      }
       health_queries: {
         Row: {
           id: string

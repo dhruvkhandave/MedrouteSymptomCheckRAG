@@ -2,12 +2,13 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Groq from 'groq-sdk'
 import { retrieveRelevantSources, type RetrievedSource } from '@/lib/retrieval'
+import { applyGlobalRules, applyRagSuppression, applyRulesForUser } from '@/lib/rules'
 import type { Database } from '@/lib/types'
 
 // Types for structured output
 interface StructuredOutput {
   symptoms: string[]
-  severity: 'mild' | 'moderate' | 'severe'
+  severity: 'mild' | 'moderate' | 'severe' | 'extremely severe'
   duration: string
   risk_factors: string[]
   recommended_specialist?: string
@@ -646,7 +647,7 @@ Symptoms:
 
 {
   "symptoms": string[],
-  "severity": "mild" | "moderate" | "severe",
+  "severity": "mild" | "moderate" | "severe" | "extremely severe",
   "duration": string,
   "risk_factors": string[],
   "recommended_specialist": string, // always include; choose the most relevant specialist (e.g., cardiology, neurology, pulmonology, GI, psychiatry, dermatology, family medicine)
@@ -920,7 +921,7 @@ Chronic conditions: ${structuredOutput.chronic_conditions?.join(', ') || 'None'}
     // ============================================
     // FINAL RESPONSE
     // ============================================
-    const responsePayload: AnalyzeResponse = {
+    let responsePayload: AnalyzeResponse = {
       structured_output: structuredOutput,
       final_score: finalScore,
       urgency,
@@ -929,6 +930,31 @@ Chronic conditions: ${structuredOutput.chronic_conditions?.join(', ') || 'None'}
       sources: sourceMatches,
       rag_sources: ragSources,
       next_steps: nextSteps,
+    }
+
+    // Apply global rules
+    responsePayload = await applyGlobalRules(
+      supabase,
+      { text: symptoms, structured: structuredOutput },
+      responsePayload
+    )
+
+    // Apply user-specific rules (noop in this setup)
+    responsePayload = await applyRulesForUser(
+      user?.id,
+      { text: symptoms, structured: structuredOutput },
+      responsePayload,
+      supabase
+    )
+
+    // Apply RAG suppression based on global rules only
+    try {
+      const suppressRules: any[] = []
+      const { data: globalRules } = await supabase.from('global_ai_rules').select('*')
+      if (globalRules) suppressRules.push(...(globalRules as any[]))
+      responsePayload.rag_sources = applyRagSuppression(responsePayload.rag_sources || [], suppressRules as any)
+    } catch (e) {
+      console.warn('RAG suppression skipped due to fetch error', e)
     }
 
     if (user) {
