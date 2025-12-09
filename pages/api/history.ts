@@ -15,8 +15,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HistoryListResponse | HistoryDetailResponse | { error: string }>
 ) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET')
+  if (req.method !== 'GET' && req.method !== 'DELETE') {
+    res.setHeader('Allow', 'GET, DELETE')
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
@@ -32,6 +32,7 @@ export default async function handler(
 
   const userId = user.id
   const idParam = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id
+  const bodyId = req.body?.id
 
   const mapRow = (row: any): HistoryRow => ({
     id: row.id,
@@ -40,6 +41,18 @@ export default async function handler(
     input_text: row.input_text || '',
     structured_output: (row.structured_output || null) as AnalyzeResponse | null,
   })
+
+  if (req.method === 'DELETE') {
+    const deleteId = bodyId || idParam
+    if (!deleteId) {
+      return res.status(400).json({ error: 'id is required' })
+    }
+    const { error } = await supabase.from('health_queries').delete().eq('id', deleteId).eq('user_id', userId)
+    if (error) {
+      return res.status(500).json({ error: error.message })
+    }
+    return res.status(200).json({ query: null })
+  }
 
   if (idParam) {
     const { data, error } = await supabase

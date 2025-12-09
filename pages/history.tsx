@@ -33,6 +33,7 @@ export default function HistoryPage() {
   const [items, setItems] = useState<HistoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     const verifySessionAndLoad = async () => {
@@ -64,6 +65,28 @@ export default function HistoryPage() {
   }, [sessionLoading, router, supabase])
 
   const hasHistory = useMemo(() => items.length > 0, [items])
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id)
+    setError(null)
+    try {
+      const resp = await fetch('/api/history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        credentials: 'include',
+      })
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to delete entry')
+      }
+      setItems((prev) => prev.filter((i) => i.id !== id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete entry')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <>
@@ -115,11 +138,13 @@ export default function HistoryPage() {
                 {items.map((item) => (
                   <li
                     key={item.id}
-                    className="p-4 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/history/${item.id}`)}
+                    className="p-4 hover:bg-gray-50"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        className="flex-1 text-left"
+                        onClick={() => router.push(`/history/${item.id}`)}
+                      >
                         <div className="text-sm text-gray-500">{formatDate(item.created_at)}</div>
                         {(() => {
                           const structured = item.structured_output?.structured_output
@@ -150,8 +175,17 @@ export default function HistoryPage() {
                             )}
                           </div>
                         )}
+                      </button>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className="text-xs text-indigo-600 font-medium">View</span>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          disabled={deletingId === item.id}
+                          className="text-xs text-red-600 hover:text-red-800 disabled:opacity-50"
+                        >
+                          {deletingId === item.id ? 'Deleting...' : 'Delete'}
+                        </button>
                       </div>
-                      <span className="text-xs text-indigo-600 font-medium">View</span>
                     </div>
                   </li>
                 ))}
