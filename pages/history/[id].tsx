@@ -172,7 +172,7 @@ export default function HistoryDetailPage() {
                 </div>
 
                 {/* Core Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                     <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Duration</div>
                     <div className="text-gray-900">{result.structured_output.duration || 'Not provided'}</div>
@@ -201,6 +201,14 @@ export default function HistoryDetailPage() {
                     >
                       {result.urgency.toUpperCase()}
                     </span>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+                      Recommended Specialist
+                    </div>
+                    <div className="text-gray-900">
+                      {result.structured_output.recommended_specialist || 'Not provided'}
+                    </div>
                   </div>
                 </div>
 
