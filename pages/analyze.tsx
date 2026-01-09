@@ -56,7 +56,7 @@ export default function AnalyzePage() {
   }
 
   const handleAnalyzeFlow = async () => {
-    if (!acknowledged) return
+    if (!acknowledged || loading) return
     setLoading(true)
     setError(null)
     setResult(null)
@@ -129,6 +129,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
   }
 
   const handleAnalyze = async () => {
+    if (loading) return
     if (!symptoms.trim() || !acknowledged) {
       setError('Please describe your symptoms')
       return
@@ -539,6 +540,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       }
                     }}
                     disabled={
+                      loading ||
                       (localStep === 1 && (!age.trim() || !gender.trim())) ||
                       (localStep === 2 && (!symptoms.trim())) ||
                       (localStep === 3 && (!acknowledged || !symptoms.trim()))
@@ -547,7 +549,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       localStep === 3 ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white'
                     } disabled:opacity-60`}
                   >
-                    {localStep === 3 ? 'Analyze' : 'Next'}
+                    {loading ? 'Analyzing...' : localStep === 3 ? 'Analyze' : 'Next'}
                   </button>
                 </div>
               </div>

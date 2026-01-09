@@ -35,6 +35,7 @@ MedRoute is a symptom-to-triage helper. A patient types their symptoms, MedRoute
   - `OPENAI_API_KEY` (required for RAG reference matches)
   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (required for auth/history)
   - `SUPABASE_SERVICE_ROLE_KEY` or service key with DB access for server routes that write history/rules
+  - `ADMIN_EMAIL` (required for admin rules endpoints)
 - **Install:** `npm install`
 - **Run dev:** `npm run dev` then open `http://localhost:3000`
 

@@ -2,7 +2,7 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { Database } from '@/lib/types'
 
-const ADMIN_EMAIL = 'dkdave12345678@gmail.com'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
@@ -12,6 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     data: { user },
   } = await supabase.auth.getUser()
 
+  if (!ADMIN_EMAIL) return res.status(500).json({ error: 'Admin email not configured' })
   if (user?.email !== ADMIN_EMAIL) return res.status(401).json({ error: 'Unauthorized' })
 
   const { data, error } = await supabase
