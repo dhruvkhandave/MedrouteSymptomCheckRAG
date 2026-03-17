@@ -17,13 +17,13 @@ export default function Navbar() {
   }
 
   return (
-    <header className="w-full border-b border-gray-200 bg-white/80 backdrop-blur-md">
+    <header className="w-full border-b-2 border-slate-300 bg-white">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/" className="text-xl font-semibold text-indigo-700">
+          <Link href="/" className="text-xl font-semibold text-slate-900">
             MedRoute
           </Link>
-          <span className="text-xs text-gray-500 leading-none">by Dhruv Khandave</span>
+        
         </div>
         {!isLoading && (
           session ? (
@@ -31,21 +31,21 @@ export default function Navbar() {
               {session?.user?.email === 'dkdave12345678@gmail.com' ? (
                 <Link
                   href="/admin/ai-manager"
-                  className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                  className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   Admin AI Manager
                 </Link>
               ) : (
                 <Link
                   href="/ai-manager"
-                  className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                  className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
                 >
                   AI Manager
                 </Link>
               )}
               <Link
                 href="/appointment-ai-agent"
-                className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
               >
                 Appointment AI Agent
               </Link>
@@ -57,20 +57,20 @@ export default function Navbar() {
                     router.push('/analyze')
                   }
                 }}
-                className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
               >
                 Analyze
               </button>
               <Link
                 href="/history"
-                className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
               >
                 History
               </Link>
               <button
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="px-3 py-2 rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-3 py-2 rounded-sm text-white bg-slate-900 border border-slate-900 hover:bg-slate-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loggingOut ? 'Logging out...' : 'Logout'}
               </button>
@@ -79,13 +79,13 @@ export default function Navbar() {
             <nav className="flex items-center gap-3 text-sm">
               <Link
                 href="/login"
-                className="px-3 py-2 rounded-lg text-gray-700 hover:text-indigo-700 hover:bg-indigo-50 transition-colors"
+                className="px-3 py-2 rounded-sm border border-transparent text-gray-700 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50 transition-colors"
               >
                 Login
               </Link>
               <Link
                 href="/signup"
-                className="px-3 py-2 rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+                className="px-3 py-2 rounded-sm text-white bg-slate-900 border border-slate-900 hover:bg-slate-800 transition-colors"
               >
                 Sign Up
               </Link>

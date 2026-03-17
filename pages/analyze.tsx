@@ -218,6 +218,17 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
     }
   }
 
+  const getPatternRelevance = (similarity?: number) => {
+    if (typeof similarity !== 'number') return null
+    if (similarity >= 0.75) {
+      return { label: 'High relevance', className: 'bg-emerald-100 text-emerald-800 border-emerald-300' }
+    }
+    if (similarity >= 0.45) {
+      return { label: 'Moderate relevance', className: 'bg-amber-100 text-amber-800 border-amber-300' }
+    }
+    return { label: 'Low relevance', className: 'bg-slate-100 text-slate-700 border-slate-300' }
+  }
+
   const toggleCheckbox = (value: string, list: string[], setter: (v: string[]) => void) => {
     setter(
       list.includes(value)
@@ -520,7 +531,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">MedRoute</h1>
             <p className="text-gray-600">Healthcare symptom analysis with AI-powered triage</p>
-            <p className="text-xs text-gray-400 mt-3 font-light">by Dhruv Khandave</p>
+      
           </div>
 
           {step !== 3 && (
@@ -643,9 +654,9 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
 
           {/* Step 3: Results */}
           {step === 3 && result && (
-            <div className="bg-white/90 border border-gray-100 rounded-2xl shadow-2xl p-8">
+            <div className="bg-white border-2 border-slate-300 rounded-sm shadow-sm p-8">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-bold text-gray-900">Your Analysis Summary</h2>
+                <h2 className="text-3xl font-bold text-gray-900">Your Guidance Summary</h2>
                 <button
                   onClick={() => {
                     setStep(1)
@@ -675,107 +686,133 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     setProvidersError(null)
                     setProvidersLoading(false)
                   }}
-                  className="text-sm text-indigo-700 hover:text-indigo-900 border border-indigo-200 bg-indigo-50 px-3 py-2 rounded-lg font-medium transition-colors"
+                  className="text-sm text-slate-800 hover:text-black border border-slate-300 bg-slate-100 px-3 py-2 rounded-sm font-medium transition-colors"
                 >
                   Start New Analysis
                 </button>
               </div>
 
+              <div className="mb-6 border border-amber-300 bg-amber-50 p-4">
+                <p className="text-sm text-amber-900 leading-relaxed">
+                  MedRoute is an informational early screening tool, not a diagnosis. If symptoms are severe,
+                  rapidly worsening, or you think this is an emergency, call 911 or seek urgent care now.
+                </p>
+              </div>
+
               {/* Tab Toggle */}
-              <div className="flex gap-4 mb-6 border-b border-gray-200">
+              <div className="flex gap-4 mb-6 border-b border-slate-300">
                 <button
                   onClick={() => setView('doctor')}
                   className={`pb-3 px-1 font-medium transition-colors ${
                     view === 'doctor'
-                      ? 'text-indigo-600 border-b-2 border-indigo-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-slate-900 border-b-2 border-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Detailed View
+                  Guidance Summary
                 </button>
                 <button
                   onClick={() => setView('json')}
                   className={`pb-3 px-1 font-medium transition-colors ${
                     view === 'json'
-                      ? 'text-indigo-600 border-b-2 border-indigo-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-slate-900 border-b-2 border-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Raw Data
+                  Technical Data
                 </button>
               </div>
 
               {/* Detailed View */}
               {view === 'doctor' && (
                 <div className="space-y-6">
-                  {/* Patient Info */}
-                  {(age || gender || symptomTimeline || result.structured_output) && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Suggested Next Step</div>
+                    <div className="bg-slate-100 border border-slate-300 p-4 rounded-sm text-slate-900">
+                      {result.recommended_action}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                      <div className="border border-gray-200 rounded-sm p-3">
+                        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">How Soon to Seek Care</div>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-sm border-2 text-sm font-semibold ${getUrgencyColor(
+                            result.urgency
+                          )}`}
+                        >
+                          {result.urgency.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="border border-gray-200 rounded-sm p-3">
+                        <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Symptom Intensity (screening)</div>
+                        <span
+                          className={`inline-block px-3 py-1 rounded-sm text-sm font-semibold ${
+                            result.structured_output.severity === 'mild'
+                              ? 'bg-green-100 text-green-800'
+                              : result.structured_output.severity === 'moderate'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {result.structured_output.severity.charAt(0).toUpperCase() +
+                            result.structured_output.severity.slice(1)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline */}
+                  {result.next_steps && (
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Patient Info</div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-800">
-                        {age && <div><span className="font-medium text-gray-600">Age:</span> {age}</div>}
-                        {gender && <div><span className="font-medium text-gray-600">Gender:</span> <span className="capitalize">{gender}</span></div>}
-                        {symptomTimeline && <div><span className="font-medium text-gray-600">Timeline:</span> {symptomTimeline}</div>}
+                      <h3 className="font-semibold text-sm text-gray-700 mb-4 uppercase tracking-wide">
+                        What To Monitor Next
+                      </h3>
+
+                      <div className="space-y-4">
+                        {result.next_steps.immediate && result.next_steps.immediate.length > 0 && (
+                          <div>
+                            <div className="font-medium text-red-700 mb-2">Now to 24 hours</div>
+                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
+                              {result.next_steps.immediate.map((step: string, i: number) => (
+                                <li key={i}>{step}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {result.next_steps.shortTerm && result.next_steps.shortTerm.length > 0 && (
+                          <div>
+                            <div className="font-medium text-yellow-700 mb-2">24 to 72 hours</div>
+                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
+                              {result.next_steps.shortTerm.map((step: string, i: number) => (
+                                <li key={i}>{step}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {result.next_steps.seekCare && result.next_steps.seekCare.length > 0 && (
+                          <div>
+                            <div className="font-medium text-blue-700 mb-2">When to seek medical care</div>
+                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
+                              {result.next_steps.seekCare.map((step: string, i: number) => (
+                                <li key={i}>{step}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Symptoms */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Symptoms</div>
-                    <ul className="list-disc list-inside space-y-1 text-gray-900">
-                      {result.structured_output.symptoms.map((symptom, idx) => (
-                        <li key={idx}>{symptom}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Severity & Urgency */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Severity</div>
-                      <span
-                        className={`inline-block px-4 py-2 rounded-lg font-semibold ${
-                          result.structured_output.severity === 'mild'
-                            ? 'bg-green-100 text-green-800'
-                            : result.structured_output.severity === 'moderate'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {result.structured_output.severity.charAt(0).toUpperCase() +
-                          result.structured_output.severity.slice(1)}
-                      </span>
-                    </div>
-                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                      <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Urgency</div>
-                      <span
-                        className={`inline-block px-4 py-2 rounded-lg border-2 font-semibold ${getUrgencyColor(
-                          result.urgency
-                        )}`}
-                      >
-                        {result.urgency.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Recommended Action */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                    <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Recommended Action</div>
-                    <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded">
-                      <div className="text-indigo-900">{result.recommended_action}</div>
-                    </div>
-                  </div>
-
-                  {/* Recommended Providers Nearby */}
+                  {/* Care options */}
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Recommended Providers Nearby
+                          Find Nearby Care Options
                         </div>
-                        <div className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 mt-1">
-                          <span className="font-semibold">AI recommendation:</span>
+                        <div className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-sm border border-slate-300 bg-slate-100 text-slate-800 mt-1">
+                          <span className="font-semibold">Suggested care type:</span>
                           <span>
                             {result.structured_output.recommended_specialist || 'family medicine'}
                           </span>
@@ -788,7 +825,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                         </p>
                         {!result.structured_output.recommended_specialist && (
                           <p className="text-xs text-amber-600 mt-1">
-                            Specialist type not provided; defaulting to family medicine.
+                            Specific care type was not identified, so this defaults to family medicine.
                           </p>
                         )}
                       </div>
@@ -858,7 +895,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       {providers.map((p, idx) => (
                         <div
                           key={`${p.name}-${idx}`}
-                          className="border border-gray-200 rounded-lg p-4 flex flex-col gap-1"
+                          className="border border-gray-200 rounded-sm p-4 flex flex-col gap-1"
                         >
                           <div className="font-semibold text-gray-900">{p.name}</div>
                           {p.practiceName && <div className="text-sm text-gray-700">{p.practiceName}</div>}
@@ -869,31 +906,57 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     </div>
                   </div>
 
-                  {/* Reference Patterns (AI-identified) */}
+                  {/* Patient Info */}
+                  {(age || gender || symptomTimeline || result.structured_output) && (
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Your Entered Details</div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-800">
+                        {age && <div><span className="font-medium text-gray-600">Age:</span> {age}</div>}
+                        {gender && <div><span className="font-medium text-gray-600">Gender:</span> <span className="capitalize">{gender}</span></div>}
+                        {symptomTimeline && <div><span className="font-medium text-gray-600">Timeline:</span> {symptomTimeline}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Symptoms */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">What You Reported</div>
+                    <ul className="list-disc list-inside space-y-1 text-gray-900">
+                      {result.structured_output.symptoms.map((symptom, idx) => (
+                        <li key={idx}>{symptom}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Similar patterns */}
                   {result.rag_sources && result.rag_sources.length > 0 && (
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-semibold text-sm text-gray-700 uppercase tracking-wide">
-                          Reference Patterns (AI-identified)
+                          Similar Health Patterns (for context only)
                         </h3>
                         <p className="text-xs text-gray-500 italic">
-                          Informational only; not a diagnosis.
+                          Educational comparison, not diagnosis.
                         </p>
                       </div>
                       <div className="space-y-4">
                         {result.rag_sources.map((rag: RetrievedSource) => (
-                          <div key={rag.id} className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                          <div key={rag.id} className="bg-slate-50 border border-slate-200 rounded-sm p-4">
                             <div className="flex items-start justify-between mb-2">
                               <h4 className="font-semibold text-gray-900">{rag.title}</h4>
-                              {rag.similarity !== undefined && (
-                                <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
-                                  {Math.round(rag.similarity * 100)}% match
-                                </span>
-                              )}
+                              {(() => {
+                                const relevance = getPatternRelevance(rag.similarity)
+                                if (!relevance) return null
+                                return (
+                                  <span className={`text-xs px-2 py-1 rounded-sm border ${relevance.className}`}>
+                                    {relevance.label}
+                                  </span>
+                                )
+                              })()}
                             </div>
                             <p className="text-sm text-gray-700 mb-2">{rag.summary}</p>
-                            <div className="mt-3 pt-3 border-t border-purple-200">
-                              <p className="text-xs font-medium text-gray-600 mb-1">Guidance:</p>
+                            <div className="mt-3 pt-3 border-t border-slate-200">
+                              <p className="text-xs font-medium text-gray-600 mb-1">General guidance:</p>
                               <p className="text-sm text-gray-800">{rag.guidance}</p>
                             </div>
                           </div>
@@ -902,15 +965,15 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     </div>
                   )}
 
-                  {/* Clinical Sources */}
+                  {/* Educational references */}
                   {result.sources && result.sources.length > 0 && (
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <h3 className="font-semibold text-sm text-gray-700 mb-3 uppercase tracking-wide">
-                        Clinical Sources
+                        Educational References
                       </h3>
                       <div className="space-y-3">
                         {result.sources.slice(0, 2).map((src: SourceMatch, idx: number) => (
-                          <div key={idx} className="bg-gray-50 p-3 rounded border border-gray-200">
+                          <div key={idx} className="bg-gray-50 p-3 rounded-sm border border-gray-200">
                             <div className="font-medium text-gray-900 mb-1">{src.condition}</div>
                             {src.matchedSymptoms && src.matchedSymptoms.length > 0 && (
                               <div className="text-xs text-gray-600 mb-2">
@@ -936,58 +999,11 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                     </div>
                   )}
 
-                  {/* Timeline */}
-                  {result.next_steps && (
-                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                      <h3 className="font-semibold text-sm text-gray-700 mb-4 uppercase tracking-wide">
-                        Timeline
-                      </h3>
-
-                      <div className="space-y-4">
-                        {/* Immediate */}
-                        {result.next_steps.immediate && result.next_steps.immediate.length > 0 && (
-                          <div>
-                            <div className="font-medium text-red-700 mb-2">Immediate (0–24 hours)</div>
-                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
-                              {result.next_steps.immediate.map((step: string, i: number) => (
-                                <li key={i}>{step}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Short term */}
-                        {result.next_steps.shortTerm && result.next_steps.shortTerm.length > 0 && (
-                          <div>
-                            <div className="font-medium text-yellow-700 mb-2">Short-Term Monitoring (24–72 hours)</div>
-                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
-                              {result.next_steps.shortTerm.map((step: string, i: number) => (
-                                <li key={i}>{step}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Seek care */}
-                        {result.next_steps.seekCare && result.next_steps.seekCare.length > 0 && (
-                          <div>
-                            <div className="font-medium text-blue-700 mb-2">When To Seek Medical Care</div>
-                            <ul className="list-disc list-inside ml-2 text-sm text-gray-700 space-y-1">
-                              {result.next_steps.seekCare.map((step: string, i: number) => (
-                                <li key={i}>{step}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Severity Rationale */}
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold text-sm text-gray-700 uppercase tracking-wide">
-                        Severity Rationale
+                        Why This Guidance Was Generated
                       </h3>
                       {typeof result.final_score === 'number' && (
                         <span className="text-xs text-gray-500">
@@ -996,8 +1012,9 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       )}
                     </div>
                     <p className="text-sm text-gray-700 mb-3">
-                      The AI assessed severity as <span className="font-semibold">{result.structured_output.severity}</span> and urgency as{' '}
-                      <span className="font-semibold">{result.urgency}</span> based on the factors below.
+                      This output reflects a screening-level interpretation of your inputs. Reported symptom intensity
+                      was <span className="font-semibold">{result.structured_output.severity}</span> and care urgency
+                      was <span className="font-semibold">{result.urgency}</span> based on the factors below.
                     </p>
                     {result.structured_output.risk_factors && result.structured_output.risk_factors.length > 0 ? (
                       <ul className="list-disc list-inside space-y-1 text-gray-800">
@@ -1014,7 +1031,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
 
               {/* Raw Data */}
               {view === 'json' && (
-                <pre className="bg-gray-900 text-gray-200 p-4 rounded overflow-x-auto text-sm">
+                <pre className="bg-gray-900 text-gray-200 p-4 rounded-sm overflow-x-auto text-sm">
                   {JSON.stringify(result, null, 2)}
                 </pre>
               )}
