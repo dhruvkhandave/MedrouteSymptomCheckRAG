@@ -2,6 +2,7 @@ import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import Groq from 'groq-sdk'
 import { retrieveRelevantSources, type RetrievedSource } from '@/lib/retrieval'
+import { getEmbedding } from '@/lib/embeddings'
 import { applyGlobalRules, applyRagSuppression, applyRulesForUser } from '@/lib/rules'
 import type { Database } from '@/lib/types'
 
@@ -557,6 +558,14 @@ const buildFollowupQuestions = (text: string): string[] => {
   return collected.slice(0, 9)
 }
 
+const normalizeSessionId = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > 128) return null
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return null
+  return trimmed
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<AnalyzeResponse | { error: string }>
@@ -618,7 +627,9 @@ Symptoms:
       : payload?.lifestyle?.medications
       ? String(payload.lifestyle.medications).split(',').map((v: string) => v.trim()).filter(Boolean)
       : [],
+    session_id: rawSessionId,
   } = body || {}
+  const sessionId = normalizeSessionId(rawSessionId)
 
   if (!symptoms || typeof symptoms !== 'string') {
     return res.status(400).json({ error: 'Symptoms description is required' })
@@ -887,7 +898,7 @@ Follow-up answers: ${JSON.stringify(followUpAnswers)}
     // ============================================
     let ragSources: RetrievedSource[] = []
     try {
-      const ragContext = `
+      let ragContext = `
 ${symptoms}
 Medical history: ${structuredOutput.medical_history?.join(', ') || 'None'}
 Lifestyle: ${structuredOutput.lifestyle?.join(', ') || 'None'}
@@ -909,6 +920,62 @@ Urgency: ${urgency}
 Medications: ${structuredOutput.current_medications?.join(', ') || 'None'}
 Chronic conditions: ${structuredOutput.chronic_conditions?.join(', ') || 'None'}
 `
+
+      // ── Document RAG enrichment ──────────────────────────────────────
+      // If the patient uploaded a document, find the most relevant chunks
+      // and append them to the context before running similarity search.
+      if (sessionId && user?.id) {
+        try {
+          const scopedSessionId = `${user.id}:${sessionId}`
+          const { data: docs } = await supabase
+            .from('medical_documents')
+            .select('id')
+            .eq('session_id', scopedSessionId)
+            .limit(5)
+
+          if (docs && docs.length > 0) {
+            const docIds = docs.map((d: { id: string }) => d.id)
+            const { data: chunks } = await supabase
+              .from('medical_document_chunks')
+              .select('chunk_text, embedding')
+              .in('document_id', docIds)
+              .limit(60)
+
+            if (chunks && chunks.length > 0) {
+              const queryEmbedding = await getEmbedding(ragContext)
+
+              // Score each chunk against the current context embedding
+              const scored = chunks
+                .map((c: { chunk_text: string; embedding: unknown }) => {
+                  const emb: number[] =
+                    typeof c.embedding === 'string'
+                      ? JSON.parse(c.embedding)
+                      : (c.embedding as number[])
+                  let dot = 0, normA = 0, normB = 0
+                  for (let i = 0; i < queryEmbedding.length; i++) {
+                    dot += queryEmbedding[i] * emb[i]
+                    normA += queryEmbedding[i] * queryEmbedding[i]
+                    normB += emb[i] * emb[i]
+                  }
+                  const sim = normA && normB ? dot / (Math.sqrt(normA) * Math.sqrt(normB)) : 0
+                  return { text: c.chunk_text, sim }
+                })
+                .filter((c: { text: string; sim: number }) => c.sim > 0.2)
+                .sort((a: { sim: number }, b: { sim: number }) => b.sim - a.sim)
+                .slice(0, 4)
+
+              if (scored.length > 0) {
+                ragContext += '\n\nPatient medical document context:\n' + scored.map((c: { text: string }) => c.text).join('\n\n')
+                debugLogs.push(`Enriched RAG context with ${scored.length} chunk(s) from uploaded document.`)
+              }
+            }
+          }
+        } catch (docRagError) {
+          console.warn('Document RAG enrichment failed (non-critical):', docRagError)
+        }
+      }
+      // ────────────────────────────────────────────────────────────────
+
       ragSources = await retrieveRelevantSources(ragContext, 2)
       if (ragSources.length > 0) {
         debugLogs.push(`Retrieved ${ragSources.length} relevant clinical pattern(s) via RAG.`)

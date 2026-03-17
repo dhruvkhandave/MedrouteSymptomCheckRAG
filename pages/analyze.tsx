@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
 
 import { Step1 } from '@/components/intake/Step1'
 import { Step2 } from '@/components/intake/Step2'
 import { Step3 } from '@/components/intake/Step3'
+import { Step4Documents } from '@/components/intake/Step4Documents'
 
 import type { AnalyzeResponse, RetrievedSource, SourceMatch } from '@/lib/types'
 
@@ -37,12 +38,18 @@ export default function AnalyzePage() {
   const [acknowledged, setAcknowledged] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [localStep, setLocalStep] = useState(1)
+  const [sessionId, setSessionId] = useState('')
+  const [docUploaded, setDocUploaded] = useState(false)
   const [providerZip, setProviderZip] = useState('')
   const [providers, setProviders] = useState<
     Array<{ name: string; practiceName?: string | null; address: string; phone?: string }>
   >([])
   const [providersLoading, setProvidersLoading] = useState(false)
   const [providersError, setProvidersError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setSessionId(crypto.randomUUID())
+  }, [])
 
   const handleGenerateFollowUps = () => {
     if (!symptoms.trim()) {
@@ -110,6 +117,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
           menstrualCycle,
           chronicConditions,
           medications,
+          session_id: sessionId,
         }),
       })
 
@@ -165,6 +173,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
           menstrualCycle,
           chronicConditions,
           medications,
+          session_id: sessionId,
         }),
       })
 
@@ -471,6 +480,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
     if (localStep === 1) return age.trim() !== '' && gender.trim() !== ''
     if (localStep === 2) return true
     if (localStep === 3) return symptoms.trim() !== '' && acknowledged
+    if (localStep === 4) return true
     return false
   }, [localStep, age, gender, symptoms, acknowledged])
 
@@ -516,7 +526,7 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
           {step !== 3 && (
             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Step {localStep} of 3</h2>
+                <h2 className="text-xl font-bold text-gray-900">Step {localStep} of 4</h2>
                 <div className="flex gap-2">
                   <button
                     onClick={() => localStep > 1 && setLocalStep(localStep - 1)}
@@ -535,6 +545,8 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                         } else {
                           setLocalStep(3)
                         }
+                      } else if (localStep === 3) {
+                        setLocalStep(4)
                       } else {
                         handleAnalyzeFlow()
                       }
@@ -543,13 +555,14 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                       loading ||
                       (localStep === 1 && (!age.trim() || !gender.trim())) ||
                       (localStep === 2 && (!symptoms.trim())) ||
-                      (localStep === 3 && (!acknowledged || !symptoms.trim()))
+                      (localStep === 3 && (!acknowledged || !symptoms.trim())) ||
+                      (localStep === 4 && false)
                     }
                     className={`px-4 py-2 text-sm font-medium rounded-lg ${
-                      localStep === 3 ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white'
+                      localStep === 4 ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white'
                     } disabled:opacity-60`}
                   >
-                    {loading ? 'Analyzing...' : localStep === 3 ? 'Analyze' : 'Next'}
+                    {loading ? 'Analyzing...' : localStep === 4 ? 'Analyze' : 'Next'}
                   </button>
                 </div>
               </div>
@@ -613,6 +626,13 @@ Follow-up: ${JSON.stringify(followUpAnswers)}
                 </div>
               )}
 
+
+              {localStep === 4 && (
+                <Step4Documents
+                  sessionId={sessionId}
+                  onUploadComplete={(count, preview) => setDocUploaded(true)}
+                />
+              )}
               {error && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                   {error}
